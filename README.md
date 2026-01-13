@@ -54,7 +54,7 @@ Dentro dela, crie um arquivo chamado secrets.toml.
 
 Cole suas credenciais do Google Cloud dentro dele:
 
-Ini, TOML
+
 
 [connections.gsheets]
 spreadsheet = "LINK_DA_SUA_PLANILHA"
