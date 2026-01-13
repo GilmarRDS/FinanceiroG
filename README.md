@@ -24,7 +24,7 @@ Abra o terminal e baixe os arquivos:
 git clone [https://github.com/SEU_USUARIO/NOME_DO_REPO.git](https://github.com/SEU_USUARIO/NOME_DO_REPO.git)
 cd NOME_DO_REPO
 
-2. Crie um ambiente virtual
+### 2. Crie um ambiente virtual
 Isso isola as bibliotecas do projeto para não bagunçar seu Python:
 
 No Windows:
@@ -39,7 +39,7 @@ Bash
 
 python3 -m venv venv
 source venv/bin/activate
-3. Instale as dependências
+### 3. Instale as dependências
 Instale o Streamlit, Pandas e as outras bibliotecas necessárias:
 
 Ini, TOML
@@ -61,7 +61,7 @@ client_x509_cert_url = "..."
 Bash
 
 pip install -r requirements.txt
-4. 🔑 Configuração das Senhas (Importante!)
+### 4. 🔑 Configuração das Senhas (Importante!)
 O arquivo de senhas não vem junto com o código (por segurança). Você precisa criá-lo manualmente.
 
 Na pasta raiz do projeto, crie uma pasta chamada .streamlit.
@@ -70,7 +70,7 @@ Dentro dela, crie um arquivo chamado secrets.toml.
 
 Cole suas credenciais do Google Cloud dentro dele:
 
-5. Execute o aplicativo
+### 5. Execute o aplicativo
 Com tudo configurado, rode o comando:
 
 Bash
@@ -92,8 +92,5 @@ Google Sheets API
 Desenvolvido por Gilmar Ribeiro dos Santos.
 
 
-### Passo 2: Salvar e Enviar para o GitHub (Essencial)
-Depois de colar o texto acima no arquivo e salvar (`Ctrl + S`), você precisa avisar o GitHub que o arquivo mudou.
 
-Abra o terminal do VS Code e digite estes 3 comandos, um por um:
 
