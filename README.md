@@ -42,6 +42,18 @@ source venv/bin/activate
 ### 3. Instale as dependências
 Instale o Streamlit, Pandas e as outras bibliotecas necessárias:
 
+Bash
+
+pip install -r requirements.txt
+### 4. 🔑 Configuração das Senhas (Importante!)
+O arquivo de senhas não vem junto com o código (por segurança). Você precisa criá-lo manualmente.
+
+Na pasta raiz do projeto, crie uma pasta chamada .streamlit.
+
+Dentro dela, crie um arquivo chamado secrets.toml.
+
+Cole suas credenciais do Google Cloud dentro dele:
+
 Ini, TOML
 
 [connections.gsheets]
@@ -57,18 +69,6 @@ auth_uri = "[https://accounts.google.com/o/oauth2/auth](https://accounts.google.
 token_uri = "[https://oauth2.googleapis.com/token](https://oauth2.googleapis.com/token)"
 auth_provider_x509_cert_url = "[https://www.googleapis.com/oauth2/v1/certs](https://www.googleapis.com/oauth2/v1/certs)"
 client_x509_cert_url = "..."
-
-Bash
-
-pip install -r requirements.txt
-### 4. 🔑 Configuração das Senhas (Importante!)
-O arquivo de senhas não vem junto com o código (por segurança). Você precisa criá-lo manualmente.
-
-Na pasta raiz do projeto, crie uma pasta chamada .streamlit.
-
-Dentro dela, crie um arquivo chamado secrets.toml.
-
-Cole suas credenciais do Google Cloud dentro dele:
 
 ### 5. Execute o aplicativo
 Com tudo configurado, rode o comando:
