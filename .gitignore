@@ -1,0 +1,22 @@
+# --- Arquivos de Sistema e Python (Lixo) ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+.venv/
+
+# --- Arquivos do VS Code (Configurações locais) ---
+.vscode/
+
+# --- ARQUIVOS DE SEGURANÇA (O MAIS IMPORTANTE) ---
+# Isso impede que suas senhas subam para o GitHub
+.streamlit/secrets.toml
+secrets.toml
+
+# --- Arquivos de Sistema Operacional ---
+.DS_Store
+Thumbs.db
