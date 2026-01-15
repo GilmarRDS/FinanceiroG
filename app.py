@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from streamlit_gsheets import GSheetsConnection
+from datetime import datetime
+import pytz
 
 # --- FUNÇÕES DE FORMATAÇÃO ---
 def float_para_real_texto(valor):
@@ -21,10 +23,14 @@ def texto_para_float(texto):
 def formatar_moeda_visual(valor):
     return f"R$ {float_para_real_texto(valor)}"
 
+def hora_atual_brasilia():
+    fuso_br = pytz.timezone('America/Sao_Paulo')
+    agora = datetime.now(fuso_br)
+    return agora.strftime("%d/%m/%Y às %H:%M")
+
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Gestor Financeiro", layout="wide", page_icon="💰")
 
-# Esconder menu padrão do Streamlit
 hide_st_style = """
             <style>
             #MainMenu {visibility: hidden;}
@@ -34,18 +40,30 @@ hide_st_style = """
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
-st.title("💰 Gestor Financeiro Pessoal")
+st.title("💰 Gestor Financeiro Pessoal - Gilmar")
 
 # --- CONEXÃO ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 try:
-    df = conn.read(worksheet="Dados_App", usecols=list(range(13)), ttl=5)
+    # 1. Lê os DADOS (Essencial)
+    df = conn.read(worksheet="Dados_App", usecols=list(range(13)), ttl=0)
     if "Categoria" in df.columns:
         df["Categoria"] = df["Categoria"].astype(str).str.strip()
     df = df.fillna(0)
+    
+    # 2. Lê a CONFIGURAÇÃO (Opcional - Protegido contra erro)
+    ultimo_mes_salvo = None
+    try:
+        df_config = conn.read(worksheet="Config", ttl=0)
+        if not df_config.empty:
+            ultimo_mes_salvo = df_config.iloc[0, 0]
+    except Exception:
+        # Se der erro aqui (aba não existe), vida que segue
+        pass
+
 except Exception as e:
-    st.error(f"Erro ao ler planilha: {e}")
+    st.error(f"Erro crítico ao ler planilha: {e}")
     st.stop()
 
 # --- PREPARAÇÃO GERAL ---
@@ -53,55 +71,78 @@ meses_disponiveis = df.columns[1:].tolist()
 categorias_entrada_padrao = ["Salário", "Reembolso", "Bônus e PLR", "Receita de Aluguel", "Renda - Outra", "Ajuda de Custo (Mãe)"]
 
 mask_entrada_global = df["Categoria"].isin(categorias_entrada_padrao)
-# Expressão regular para achar investimentos pelo nome
 mask_invest_global = df["Categoria"].str.contains("Investimento|Aplicação|CDB|CDI|Poupança|Fundo|Ações", case=False, na=False)
 
 # --- MENU LATERAL ---
 st.sidebar.header("Navegação")
 pagina = st.sidebar.radio("Ir para:", ["📅 Lançamentos e Edição", "📈 Comparativo e Evolução"])
 
+st.sidebar.divider()
+st.sidebar.caption(f"🔄 Dados de: {hora_atual_brasilia()}")
+
 # ==============================================================================
-# PÁGINA 1: LANÇAMENTOS (EDIÇÃO)
+# PÁGINA 1: LANÇAMENTOS
 # ==============================================================================
 if pagina == "📅 Lançamentos e Edição":
     
-    mes_selecionado = st.sidebar.selectbox("Selecione o Mês", meses_disponiveis)
+    # Tenta usar o último mês salvo, se não, usa o primeiro
+    indice_padrao = 0 
+    if ultimo_mes_salvo in meses_disponiveis:
+        indice_padrao = meses_disponiveis.index(ultimo_mes_salvo)
+    
+    mes_selecionado = st.sidebar.selectbox("Selecione o Mês", meses_disponiveis, index=indice_padrao)
+    
     st.subheader(f"📝 Lançamentos de {mes_selecionado}")
 
     df_entradas = df[mask_entrada_global].copy().sort_values(by="Categoria")
-    df_saidas = df[~mask_entrada_global].copy().sort_values(by="Categoria")
+    df_investimentos = df[mask_invest_global].copy().sort_values(by="Categoria")
+    df_gastos = df[~mask_entrada_global & ~mask_invest_global].copy().sort_values(by="Categoria")
 
     df_entradas["Valor_Visual"] = df_entradas[mes_selecionado].apply(float_para_real_texto)
-    df_saidas["Valor_Visual"] = df_saidas[mes_selecionado].apply(float_para_real_texto)
+    df_gastos["Valor_Visual"] = df_gastos[mes_selecionado].apply(float_para_real_texto)
+    df_investimentos["Valor_Visual"] = df_investimentos[mes_selecionado].apply(float_para_real_texto)
 
-    aba_entradas, aba_saidas = st.tabs(["🟢 Ganhos (Entradas)", "🔴 Contas e Investimentos"])
+    aba_entradas, aba_gastos, aba_invest = st.tabs(["🟢 Recebimentos", "🔴 Gastos", "📈 Investimentos"])
 
     with aba_entradas:
+        st.caption("Receitas")
         df_entradas_editado = st.data_editor(
             df_entradas[["Categoria", "Valor_Visual"]],
             column_config={"Categoria": "Descrição", "Valor_Visual": "Valor (R$)"},
             use_container_width=True, num_rows="dynamic", key="editor_entradas"
         )
 
-    with aba_saidas:
-        st.info("💡 Para Investimentos, coloque o **Valor Total Acumulado** que você tem lá no banco.")
-        df_saidas_editado = st.data_editor(
-            df_saidas[["Categoria", "Valor_Visual"]],
+    with aba_gastos:
+        st.caption("Despesas")
+        df_gastos_editado = st.data_editor(
+            df_gastos[["Categoria", "Valor_Visual"]],
             column_config={"Categoria": "Descrição", "Valor_Visual": "Valor (R$)"},
-            use_container_width=True, num_rows="dynamic", key="editor_saidas"
+            use_container_width=True, num_rows="dynamic", key="editor_gastos"
+        )
+
+    with aba_invest:
+        st.caption("Patrimônio Acumulado")
+        df_invest_editado = st.data_editor(
+            df_investimentos[["Categoria", "Valor_Visual"]],
+            column_config={"Categoria": "Descrição", "Valor_Visual": "Valor (R$)"},
+            use_container_width=True, num_rows="dynamic", key="editor_invest"
         )
 
     st.divider()
     if st.button("💾 Salvar Alterações", type="primary"):
+        # --- SALVAR DADOS FINANCEIROS (PRIORIDADE) ---
         try:
             df_entradas_editado[mes_selecionado] = df_entradas_editado["Valor_Visual"].apply(texto_para_float)
-            df_saidas_editado[mes_selecionado] = df_saidas_editado["Valor_Visual"].apply(texto_para_float)
+            df_gastos_editado[mes_selecionado] = df_gastos_editado["Valor_Visual"].apply(texto_para_float)
+            df_invest_editado[mes_selecionado] = df_invest_editado["Valor_Visual"].apply(texto_para_float)
             
-            # Recria a base completa mantendo dados dos outros meses
             cols_reais = ["Categoria", mes_selecionado]
-            df_final_mes = pd.concat([df_entradas_editado[cols_reais], df_saidas_editado[cols_reais]], ignore_index=True)
+            df_final_mes = pd.concat([
+                df_entradas_editado[cols_reais], 
+                df_gastos_editado[cols_reais],
+                df_invest_editado[cols_reais]
+            ], ignore_index=True)
             
-            # Lógica para preservar outros meses
             todas_categorias = df_final_mes["Categoria"].unique()
             df_save = pd.DataFrame({"Categoria": todas_categorias})
             
@@ -113,31 +154,53 @@ if pagina == "📅 Lançamentos e Edição":
                     df_save = df_save.merge(df_temp, on="Categoria", how="left")
             
             df_save = df_save.fillna(0).sort_values(by="Categoria")
+            
             conn.update(worksheet="Dados_App", data=df_save)
-            st.success("✅ Salvo com sucesso!")
-            st.rerun()
+            msg_sucesso = f"✅ Dados salvos com sucesso!"
+            
         except Exception as e:
-            st.error(f"Erro ao salvar: {e}")
+            st.error(f"❌ ERRO ao salvar dados: {e}")
+            st.stop()
 
-    # Cálculos
+        # --- SALVAR CONFIGURAÇÃO (OPCIONAL) ---
+        try:
+            df_config_novo = pd.DataFrame({"Ultimo_Mes": [mes_selecionado]})
+            conn.update(worksheet="Config", data=df_config_novo)
+            msg_sucesso += " (Mês lembrado)"
+        except Exception:
+            # Se falhar aqui (sem aba Config), apenas avisa discretamente no console ou ignora
+            st.toast("⚠️ Dica: Crie a aba 'Config' na planilha para o sistema lembrar o mês.", icon="💡")
+        
+        st.cache_data.clear()
+        st.success(f"{msg_sucesso} - {hora_atual_brasilia()}")
+        st.rerun()
+
+    # Métricas
     total_entradas = df_entradas[mes_selecionado].sum()
-    total_investido = df_saidas[mask_invest_global][mes_selecionado].sum()
-    total_gastos_reais = df_saidas[~mask_invest_global][mes_selecionado].sum()
-    saldo = total_entradas - total_gastos_reais
+    total_gastos = df_gastos[mes_selecionado].sum() 
+    total_investido = df_investimentos[mes_selecionado].sum()
+    saldo = total_entradas - total_gastos
 
     st.divider()
     c1, c2, c3, c4 = st.columns(4)
+    
+    delta_sobra = formatar_moeda_visual(saldo)
+    if saldo < 0:
+        delta_sobra = f"- {formatar_moeda_visual(abs(saldo))}"
+    elif saldo > 0:
+        delta_sobra = f"+ {formatar_moeda_visual(saldo)}"
+
     c1.metric("📥 Ganhos", formatar_moeda_visual(total_entradas))
-    c2.metric("💸 Gastos Reais", formatar_moeda_visual(total_gastos_reais), delta_color="inverse")
-    c3.metric("🏦 Patrimônio Total", formatar_moeda_visual(total_investido), help="Total acumulado em investimentos")
-    c4.metric("💰 Sobra de Caixa", formatar_moeda_visual(saldo), delta=formatar_moeda_visual(saldo))
+    c2.metric("💸 Gastos", formatar_moeda_visual(total_gastos), delta_color="inverse")
+    c3.metric("🏦 Investimentos", formatar_moeda_visual(total_investido), help="Total acumulado")
+    c4.metric("💰 Sobra", formatar_moeda_visual(saldo), delta=delta_sobra)
     
     # Gráficos Mês
     st.divider()
     col_g1, col_g2 = st.columns(2)
     with col_g1:
-        st.markdown("**Despesas do Mês**")
-        df_pizza = df_saidas[~mask_invest_global].copy()
+        st.markdown("**Gastos por Categoria**")
+        df_pizza = df_gastos.copy()
         df_pizza = df_pizza[df_pizza[mes_selecionado] > 0]
         if not df_pizza.empty:
             fig = px.pie(df_pizza, values=mes_selecionado, names='Categoria', hole=0.5)
@@ -145,26 +208,22 @@ if pagina == "📅 Lançamentos e Edição":
             st.plotly_chart(fig, use_container_width=True)
             
     with col_g2:
-        st.markdown("**Resumo**")
+        st.markdown("**Balanço**")
         fig_bar = px.bar(
-            pd.DataFrame({"Tipo": ["Ganhos", "Gastos"], "Valor": [total_entradas, total_gastos_reais]}),
+            pd.DataFrame({"Tipo": ["Ganhos", "Gastos"], "Valor": [total_entradas, total_gastos]}),
             x="Tipo", y="Valor", color="Tipo", text_auto='.2s', color_discrete_map={"Ganhos": "#2ECC71", "Gastos": "#E74C3C"}
         )
         fig_bar.update_layout(yaxis_tickprefix="R$ ", yaxis_tickformat=",.")
         st.plotly_chart(fig_bar, use_container_width=True)
 
-
 # ==============================================================================
-# PÁGINA 2: EVOLUÇÃO (A NOVIDADE)
+# PÁGINA 2: EVOLUÇÃO
 # ==============================================================================
 elif pagina == "📈 Comparativo e Evolução":
     
     st.header("📈 Evolução do seu Dinheiro")
     
-    # --- PROCESSAMENTO DOS DADOS ANUAIS ---
     historico = []
-    
-    # Variável para calcular o crescimento (Valor Mês Atual - Valor Mês Anterior)
     investimento_anterior = 0 
     
     for mes in meses_disponiveis:
@@ -172,10 +231,10 @@ elif pagina == "📈 Comparativo e Evolução":
         total_entradas_mes = df[mask_entrada_global][mes].sum()
         total_gastos_mes = df[~mask_entrada_global & ~mask_invest_global][mes].sum()
         
-        # O quanto aumentou em relação ao mês anterior (Aporte + Rentabilidade)
+        if total_investido_mes == 0 and total_entradas_mes == 0 and total_gastos_mes == 0:
+            break
+
         variacao_investimento = total_investido_mes - investimento_anterior
-        if investimento_anterior == 0: variacao_investimento = 0 # Ignora o primeiro mês
-        
         investimento_anterior = total_investido_mes
         
         historico.append({
@@ -187,45 +246,37 @@ elif pagina == "📈 Comparativo e Evolução":
     
     df_hist = pd.DataFrame(historico)
     
-    # --- SEÇÃO 1: PATRIMÔNIO (INVESTIMENTOS) ---
-    st.markdown("### 🏦 Seu Fundo de Investimento")
-    st.info("Este gráfico mostra o valor total acumulado e quanto ele aumentou mês a mês.")
-    
-    # GRÁFICO DE ÁREA (PATRIMÔNIO ACUMULADO)
-    fig_area = px.area(
-        df_hist, x="Mês", y="Total Investido", 
-        markers=True,
-        title="Crescimento do Patrimônio Total"
-    )
-    # Deixar a linha verde bonita e preenchida
-    fig_area.update_traces(line_color="#27AE60", fillcolor="rgba(46, 204, 113, 0.3)")
-    fig_area.update_layout(yaxis_tickprefix="R$ ", yaxis_tickformat=",.")
-    
-    # Adicionando tooltip personalizado
-    fig_area.update_traces(hovertemplate='<b>%{x}</b><br>Total: R$ %{y:,.2f}')
-    st.plotly_chart(fig_area, use_container_width=True)
-    
-    # GRÁFICO DE BARRAS (VARIAÇÃO MENSAL)
-    st.markdown("#### 🚀 Quanto aumentou por mês (Aporte + Rendimento)?")
-    
-    # Remove meses com zero para o gráfico de barras não ficar poluído
-    df_variacao = df_hist[df_hist["Aumento Mensal"] != 0]
-    
-    fig_var = px.bar(
-        df_variacao, x="Mês", y="Aumento Mensal",
-        text_auto='.2s',
-        color="Aumento Mensal",
-        color_continuous_scale="Blugrn" # Escala de cor Azul-Verde
-    )
-    fig_var.update_layout(yaxis_tickprefix="R$ ", yaxis_tickformat=",.")
-    fig_var.update_traces(texttemplate='R$ %{y:,.0f}', textposition='outside')
-    st.plotly_chart(fig_var, use_container_width=True)
+    if not df_hist.empty:
+        df_hist["Txt_Investido"] = df_hist["Total Investido"].apply(formatar_moeda_visual)
+        df_hist["Txt_Aumento"] = df_hist["Aumento Mensal"].apply(formatar_moeda_visual)
+        df_hist["Txt_Sobra"] = df_hist["Sobra de Caixa"].apply(formatar_moeda_visual)
+        
+        st.markdown("### 🏦 Patrimônio")
+        fig_area = px.area(
+            df_hist, x="Mês", y="Total Investido", 
+            markers=True
+        )
+        fig_area.update_traces(line_color="#27AE60", fillcolor="rgba(46, 204, 113, 0.3)")
+        fig_area.update_layout(yaxis_tickprefix="R$ ", separators=",.")
+        fig_area.update_traces(hovertemplate='<b>%{x}</b><br>Total: %{customdata}', customdata=df_hist["Txt_Investido"])
+        st.plotly_chart(fig_area, use_container_width=True)
+        
+        st.markdown("#### 🚀 Variação Mensal")
+        fig_var = px.bar(
+            df_hist, x="Mês", y="Aumento Mensal",
+            text="Txt_Aumento", 
+            color="Aumento Mensal",
+            color_continuous_scale="Blugrn" 
+        )
+        fig_var.update_layout(yaxis_tickprefix="R$ ", separators=",.")
+        fig_var.update_traces(textposition='outside')
+        st.plotly_chart(fig_var, use_container_width=True)
 
-    # --- SEÇÃO 2: FLUXO DE CAIXA ---
-    st.divider()
-    st.markdown("### 🔵 Fluxo de Caixa (Sobras mensais)")
-    
-    fig_sobras = px.line(df_hist, x="Mês", y="Sobra de Caixa", markers=True)
-    fig_sobras.update_traces(line_color="#2980B9", texttemplate='R$ %{y:,.0f}', textposition="top center")
-    fig_sobras.update_layout(yaxis_tickprefix="R$ ", yaxis_tickformat=",.")
-    st.plotly_chart(fig_sobras, use_container_width=True)
+        st.divider()
+        st.markdown("### 🔵 Fluxo de Caixa")
+        fig_sobras = px.line(df_hist, x="Mês", y="Sobra de Caixa", markers=True, text="Txt_Sobra")
+        fig_sobras.update_traces(line_color="#2980B9", textposition="top center")
+        fig_sobras.update_layout(yaxis_tickprefix="R$ ", separators=",.")
+        st.plotly_chart(fig_sobras, use_container_width=True)
+    else:
+        st.warning("⚠️ Nenhum dado encontrado.")
