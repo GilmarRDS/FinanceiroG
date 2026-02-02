@@ -78,6 +78,23 @@ Bash
 streamlit run app.py
 O navegador abrirá automaticamente no endereço http://localhost:8501.
 
+## 🚀 Deploy no Streamlit Cloud
+
+Para publicar o app online:
+
+1. **Faça upload do código** para um repositório público no GitHub (excluindo o arquivo `.streamlit/secrets.toml` - ele já está no `.gitignore`).
+
+2. **Acesse o Streamlit Cloud** em [share.streamlit.io](https://share.streamlit.io) e conecte seu repositório GitHub.
+
+3. **Configure as Secrets:**
+   - No painel do app no Streamlit Cloud, vá em "Settings" > "Secrets".
+   - Cole as credenciais do Google Sheets no formato TOML (igual ao arquivo `secrets.toml` local).
+   - **Importante:** As secrets no Streamlit Cloud devem ser configuradas no painel, não no arquivo do código.
+
+4. **Deploy:** Clique em "Deploy" e aguarde a publicação.
+
+**Nota:** O arquivo `.streamlit/secrets.toml` funciona apenas localmente. Para produção, use sempre as secrets do painel do Streamlit Cloud.
+
 🛠️ Tecnologias
 Python
 

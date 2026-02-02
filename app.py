@@ -50,9 +50,9 @@ st.sidebar.divider()
 st.sidebar.caption(f"🔄 Dados de: {hora_atual_brasilia()}")
 
 # --- CONEXÃO ---
-conn = st.connection("gsheets", type=GSheetsConnection)
-
 try:
+    conn = st.connection("gsheets", type=GSheetsConnection)
+
     # 1. Lê os DADOS (Essencial)
     df = conn.read(worksheet="Dados_App", usecols=list(range(13)), ttl=0)
     if "Categoria" in df.columns:
@@ -77,12 +77,14 @@ try:
     mask_invest_global = df["Categoria"].str.contains("Investimento|Aplicação|CDB|CDI|Poupança|Fundo|Ações", case=False, na=False)
 
 except Exception as e:
-    st.error(f"Erro crítico ao ler planilha: {e}")
+    st.error(f"Erro crítico ao conectar ou ler planilha: {e}")
+    st.info("💡 **Dica para deploy no Streamlit Cloud:** As credenciais do Google Sheets devem ser configuradas nas 'Secrets' do app no painel do Streamlit Cloud, não no arquivo .streamlit/secrets.toml.")
     df = None
     ultimo_mes_salvo = None
     meses_disponiveis = []
     mask_entrada_global = None
     mask_invest_global = None
+    conn = None
 
 # ==============================================================================
 # PÁGINA 1: LANÇAMENTOS
