@@ -79,18 +79,23 @@ except Exception as e:
     mask_invest_global = None
     conn = None
 
-if (
-    not isinstance(df, pd.DataFrame)
-    or not isinstance(mask_entrada_global, pd.Series)
-    or not isinstance(mask_invest_global, pd.Series)
-):
+def conexao_valida(df_dados, mask_entrada, mask_invest):
+    return (
+        isinstance(df_dados, pd.DataFrame)
+        and isinstance(mask_entrada, pd.Series)
+        and isinstance(mask_invest, pd.Series)
+        and len(mask_entrada) == len(df_dados)
+        and len(mask_invest) == len(df_dados)
+    )
+
+if not conexao_valida(df, mask_entrada_global, mask_invest_global):
     st.warning("⚠️ Conexão com Google Sheets não estabelecida. Configure as credenciais corretamente para acessar os dados.")
     st.stop()
 
 # ==============================================================================
 # PÁGINA 1: LANÇAMENTOS
 # ==============================================================================
-if pagina == "📅 Lançamentos e Edição" and df is not None and mask_entrada_global is not None:
+if pagina == "📅 Lançamentos e Edição" and conexao_valida(df, mask_entrada_global, mask_invest_global):
     
     # Tenta usar o último mês salvo, se não, usa o primeiro
     indice_padrao = 0 
@@ -250,7 +255,7 @@ if pagina == "📅 Lançamentos e Edição" and df is not None and mask_entrada_
 # ==============================================================================
 # PÁGINA 2: EVOLUÇÃO
 # ==============================================================================
-elif pagina == "📈 Comparativo e Evolução" and df is not None:
+elif pagina == "📈 Comparativo e Evolução" and conexao_valida(df, mask_entrada_global, mask_invest_global):
     
     st.header("📈 Evolução do seu Dinheiro")
     
