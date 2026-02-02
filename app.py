@@ -88,7 +88,7 @@ except Exception as e:
 # ==============================================================================
 # PÁGINA 1: LANÇAMENTOS
 # ==============================================================================
-if pagina == "📅 Lançamentos e Edição" and df is not None:
+if pagina == "📅 Lançamentos e Edição" and df is not None and mask_entrada_global is not None:
     
     # Tenta usar o último mês salvo, se não, usa o primeiro
     indice_padrao = 0 
