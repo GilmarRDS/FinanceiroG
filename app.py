@@ -42,6 +42,13 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 
 st.title("💰 Gestor Financeiro Pessoal - Gilmar")
 
+# --- MENU LATERAL ---
+st.sidebar.header("Navegação")
+pagina = st.sidebar.radio("Ir para:", ["📅 Lançamentos e Edição", "📈 Comparativo e Evolução"])
+
+st.sidebar.divider()
+st.sidebar.caption(f"🔄 Dados de: {hora_atual_brasilia()}")
+
 # --- CONEXÃO ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
@@ -51,7 +58,7 @@ try:
     if "Categoria" in df.columns:
         df["Categoria"] = df["Categoria"].astype(str).str.strip()
     df = df.fillna(0)
-    
+
     # 2. Lê a CONFIGURAÇÃO (Opcional - Protegido contra erro)
     ultimo_mes_salvo = None
     try:
@@ -62,23 +69,20 @@ try:
         # Se der erro aqui (aba não existe), vida que segue
         pass
 
+    # --- PREPARAÇÃO GERAL ---
+    meses_disponiveis = df.columns[1:].tolist()
+    categorias_entrada_padrao = ["Salário", "Reembolso", "Bônus e PLR", "Receita de Aluguel", "Renda - Outra", "Ajuda de Custo (Mãe)"]
+
+    mask_entrada_global = df["Categoria"].isin(categorias_entrada_padrao)
+    mask_invest_global = df["Categoria"].str.contains("Investimento|Aplicação|CDB|CDI|Poupança|Fundo|Ações", case=False, na=False)
+
 except Exception as e:
     st.error(f"Erro crítico ao ler planilha: {e}")
-    st.stop()
-
-# --- PREPARAÇÃO GERAL ---
-meses_disponiveis = df.columns[1:].tolist()
-categorias_entrada_padrao = ["Salário", "Reembolso", "Bônus e PLR", "Receita de Aluguel", "Renda - Outra", "Ajuda de Custo (Mãe)"]
-
-mask_entrada_global = df["Categoria"].isin(categorias_entrada_padrao)
-mask_invest_global = df["Categoria"].str.contains("Investimento|Aplicação|CDB|CDI|Poupança|Fundo|Ações", case=False, na=False)
-
-# --- MENU LATERAL ---
-st.sidebar.header("Navegação")
-pagina = st.sidebar.radio("Ir para:", ["📅 Lançamentos e Edição", "📈 Comparativo e Evolução"])
-
-st.sidebar.divider()
-st.sidebar.caption(f"🔄 Dados de: {hora_atual_brasilia()}")
+    df = None
+    ultimo_mes_salvo = None
+    meses_disponiveis = []
+    mask_entrada_global = None
+    mask_invest_global = None
 
 # ==============================================================================
 # PÁGINA 1: LANÇAMENTOS
@@ -106,26 +110,29 @@ if pagina == "📅 Lançamentos e Edição":
 
     with aba_entradas:
         st.caption("Receitas")
+        df_entradas_display = df_entradas[["Categoria", "Valor_Visual"]].copy()
         df_entradas_editado = st.data_editor(
-            df_entradas[["Categoria", "Valor_Visual"]],
+            df_entradas_display,
             column_config={"Categoria": "Descrição", "Valor_Visual": "Valor (R$)"},
-            use_container_width=True, num_rows="dynamic", key="editor_entradas"
+            width='stretch', num_rows="dynamic", key=f"editor_entradas_{mes_selecionado}"
         )
 
     with aba_gastos:
         st.caption("Despesas")
+        df_gastos_display = df_gastos[["Categoria", "Valor_Visual"]].copy()
         df_gastos_editado = st.data_editor(
-            df_gastos[["Categoria", "Valor_Visual"]],
+            df_gastos_display,
             column_config={"Categoria": "Descrição", "Valor_Visual": "Valor (R$)"},
-            use_container_width=True, num_rows="dynamic", key="editor_gastos"
+            width='stretch', num_rows="dynamic", key=f"editor_gastos_{mes_selecionado}"
         )
 
     with aba_invest:
         st.caption("Patrimônio Acumulado")
+        df_invest_display = df_investimentos[["Categoria", "Valor_Visual"]].copy()
         df_invest_editado = st.data_editor(
-            df_investimentos[["Categoria", "Valor_Visual"]],
+            df_invest_display,
             column_config={"Categoria": "Descrição", "Valor_Visual": "Valor (R$)"},
-            use_container_width=True, num_rows="dynamic", key="editor_invest"
+            width='stretch', num_rows="dynamic", key=f"editor_invest_{mes_selecionado}"
         )
 
     st.divider()
@@ -171,6 +178,12 @@ if pagina == "📅 Lançamentos e Edição":
             # Se falhar aqui (sem aba Config), apenas avisa discretamente no console ou ignora
             st.toast("⚠️ Dica: Crie a aba 'Config' na planilha para o sistema lembrar o mês.", icon="💡")
         
+        # Recarregar dados após salvar
+        df = conn.read(worksheet="Dados_App", usecols=list(range(13)), ttl=0)
+        if "Categoria" in df.columns:
+            df["Categoria"] = df["Categoria"].astype(str).str.strip()
+        df = df.fillna(0)
+
         st.cache_data.clear()
         st.success(f"{msg_sucesso} - {hora_atual_brasilia()}")
         st.rerun()
@@ -205,8 +218,8 @@ if pagina == "📅 Lançamentos e Edição":
         if not df_pizza.empty:
             fig = px.pie(df_pizza, values=mes_selecionado, names='Categoria', hole=0.5)
             fig.update_traces(texttemplate='%{percent:.1%}', hovertemplate='<b>%{label}</b><br>%{value:,.2f}')
-            st.plotly_chart(fig, use_container_width=True)
-            
+            st.plotly_chart(fig, width='stretch')
+
     with col_g2:
         st.markdown("**Balanço**")
         fig_bar = px.bar(
@@ -214,7 +227,7 @@ if pagina == "📅 Lançamentos e Edição":
             x="Tipo", y="Valor", color="Tipo", text_auto='.2s', color_discrete_map={"Ganhos": "#2ECC71", "Gastos": "#E74C3C"}
         )
         fig_bar.update_layout(yaxis_tickprefix="R$ ", yaxis_tickformat=",.")
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.plotly_chart(fig_bar, width='stretch')
 
 # ==============================================================================
 # PÁGINA 2: EVOLUÇÃO
