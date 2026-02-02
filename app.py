@@ -79,7 +79,11 @@ except Exception as e:
     mask_invest_global = None
     conn = None
 
-if df is None or mask_entrada_global is None or mask_invest_global is None:
+if (
+    not isinstance(df, pd.DataFrame)
+    or not isinstance(mask_entrada_global, pd.Series)
+    or not isinstance(mask_invest_global, pd.Series)
+):
     st.warning("⚠️ Conexão com Google Sheets não estabelecida. Configure as credenciais corretamente para acessar os dados.")
     st.stop()
 
