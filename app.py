@@ -47,6 +47,8 @@ try:
     df = conn.read(worksheet="Dados_App", usecols=list(range(13)), ttl=0)
     if "Categoria" in df.columns:
         df["Categoria"] = df["Categoria"].astype(str).str.strip()
+    else:
+        raise ValueError("Coluna 'Categoria' não encontrada na planilha.")
     meses_disponiveis = df.columns[1:].tolist()
     if meses_disponiveis:
         df[meses_disponiveis] = df[meses_disponiveis].apply(pd.to_numeric, errors="coerce").fillna(0)
@@ -76,6 +78,10 @@ except Exception as e:
     mask_entrada_global = None
     mask_invest_global = None
     conn = None
+
+if df is None or mask_entrada_global is None or mask_invest_global is None:
+    st.warning("⚠️ Conexão com Google Sheets não estabelecida. Configure as credenciais corretamente para acessar os dados.")
+    st.stop()
 
 # ==============================================================================
 # PÁGINA 1: LANÇAMENTOS
