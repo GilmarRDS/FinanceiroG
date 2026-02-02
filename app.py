@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 from streamlit_gsheets import GSheetsConnection
 from datetime import datetime
 import pytz
@@ -11,14 +10,6 @@ def float_para_real_texto(valor):
     if pd.isna(valor): valor = 0
     texto = f"{valor:,.2f}"
     return texto.replace(",", "X").replace(".", ",").replace("X", ".")
-
-def texto_para_float(texto):
-    if isinstance(texto, (int, float)): return float(texto)
-    limpo = str(texto).replace("R$", "").replace(" ", "").replace(".", "").replace(",", ".")
-    try:
-        return float(limpo)
-    except ValueError:
-        return 0.0
 
 def formatar_moeda_visual(valor):
     return f"R$ {float_para_real_texto(valor)}"
@@ -56,7 +47,9 @@ try:
     df = conn.read(worksheet="Dados_App", usecols=list(range(13)), ttl=0)
     if "Categoria" in df.columns:
         df["Categoria"] = df["Categoria"].astype(str).str.strip()
-    df = df.fillna(0)
+    meses_disponiveis = df.columns[1:].tolist()
+    if meses_disponiveis:
+        df[meses_disponiveis] = df[meses_disponiveis].apply(pd.to_numeric, errors="coerce").fillna(0)
 
     # 2. Lê a CONFIGURAÇÃO (Opcional - Protegido contra erro)
     ultimo_mes_salvo = None
@@ -69,7 +62,6 @@ try:
         pass
 
     # --- PREPARAÇÃO GERAL ---
-    meses_disponiveis = df.columns[1:].tolist()
     categorias_entrada_padrao = ["Salário", "Reembolso", "Bônus e PLR", "Receita de Aluguel", "Renda - Outra", "Ajuda de Custo (Mãe)"]
 
     mask_entrada_global = df["Categoria"].isin(categorias_entrada_padrao)
@@ -92,6 +84,10 @@ if pagina == "📅 Lançamentos e Edição" and df is not None and mask_entrada_
     
     # Tenta usar o último mês salvo, se não, usa o primeiro
     indice_padrao = 0 
+    if not meses_disponiveis:
+        st.warning("⚠️ Nenhum mês encontrado na planilha. Verifique as colunas de dados.")
+        st.stop()
+
     if ultimo_mes_salvo in meses_disponiveis:
         indice_padrao = meses_disponiveis.index(ultimo_mes_salvo)
     
@@ -103,36 +99,45 @@ if pagina == "📅 Lançamentos e Edição" and df is not None and mask_entrada_
     df_investimentos = df[mask_invest_global].copy().sort_values(by="Categoria")
     df_gastos = df[~mask_entrada_global & ~mask_invest_global].copy().sort_values(by="Categoria")
 
-    df_entradas["Valor_Visual"] = df_entradas[mes_selecionado].apply(float_para_real_texto)
-    df_gastos["Valor_Visual"] = df_gastos[mes_selecionado].apply(float_para_real_texto)
-    df_investimentos["Valor_Visual"] = df_investimentos[mes_selecionado].apply(float_para_real_texto)
+    df_entradas["Valor"] = df_entradas[mes_selecionado]
+    df_gastos["Valor"] = df_gastos[mes_selecionado]
+    df_investimentos["Valor"] = df_investimentos[mes_selecionado]
 
     aba_entradas, aba_gastos, aba_invest = st.tabs(["🟢 Recebimentos", "🔴 Gastos", "📈 Investimentos"])
 
     with aba_entradas:
         st.caption("Receitas")
-        df_entradas_display = df_entradas[["Categoria", "Valor_Visual"]].copy()
+        df_entradas_display = df_entradas[["Categoria", "Valor"]].copy()
         df_entradas_editado = st.data_editor(
             df_entradas_display,
-            column_config={"Categoria": "Descrição", "Valor_Visual": "Valor (R$)"},
+            column_config={
+                "Categoria": "Descrição",
+                "Valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f"),
+            },
             width='stretch', num_rows="dynamic", key=f"editor_entradas_{mes_selecionado}"
         )
 
     with aba_gastos:
         st.caption("Despesas")
-        df_gastos_display = df_gastos[["Categoria", "Valor_Visual"]].copy()
+        df_gastos_display = df_gastos[["Categoria", "Valor"]].copy()
         df_gastos_editado = st.data_editor(
             df_gastos_display,
-            column_config={"Categoria": "Descrição", "Valor_Visual": "Valor (R$)"},
+            column_config={
+                "Categoria": "Descrição",
+                "Valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f"),
+            },
             width='stretch', num_rows="dynamic", key=f"editor_gastos_{mes_selecionado}"
         )
 
     with aba_invest:
         st.caption("Patrimônio Acumulado")
-        df_invest_display = df_investimentos[["Categoria", "Valor_Visual"]].copy()
+        df_invest_display = df_investimentos[["Categoria", "Valor"]].copy()
         df_invest_editado = st.data_editor(
             df_invest_display,
-            column_config={"Categoria": "Descrição", "Valor_Visual": "Valor (R$)"},
+            column_config={
+                "Categoria": "Descrição",
+                "Valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f"),
+            },
             width='stretch', num_rows="dynamic", key=f"editor_invest_{mes_selecionado}"
         )
 
@@ -140,9 +145,9 @@ if pagina == "📅 Lançamentos e Edição" and df is not None and mask_entrada_
     if st.button("💾 Salvar Alterações", type="primary"):
         # --- SALVAR DADOS FINANCEIROS (PRIORIDADE) ---
         try:
-            df_entradas_editado[mes_selecionado] = df_entradas_editado["Valor_Visual"].apply(texto_para_float)
-            df_gastos_editado[mes_selecionado] = df_gastos_editado["Valor_Visual"].apply(texto_para_float)
-            df_invest_editado[mes_selecionado] = df_invest_editado["Valor_Visual"].apply(texto_para_float)
+            df_entradas_editado[mes_selecionado] = df_entradas_editado["Valor"].fillna(0)
+            df_gastos_editado[mes_selecionado] = df_gastos_editado["Valor"].fillna(0)
+            df_invest_editado[mes_selecionado] = df_invest_editado["Valor"].fillna(0)
             
             cols_reais = ["Categoria", mes_selecionado]
             df_final_mes = pd.concat([
@@ -183,7 +188,9 @@ if pagina == "📅 Lançamentos e Edição" and df is not None and mask_entrada_
         df = conn.read(worksheet="Dados_App", usecols=list(range(13)), ttl=0)
         if "Categoria" in df.columns:
             df["Categoria"] = df["Categoria"].astype(str).str.strip()
-        df = df.fillna(0)
+        meses_disponiveis = df.columns[1:].tolist()
+        if meses_disponiveis:
+            df[meses_disponiveis] = df[meses_disponiveis].apply(pd.to_numeric, errors="coerce").fillna(0)
 
         st.cache_data.clear()
         st.success(f"{msg_sucesso} - {hora_atual_brasilia()}")
