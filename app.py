@@ -35,7 +35,6 @@ hide_st_style = """
             <style>
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
-            header {visibility: hidden;}
             </style>
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
@@ -89,7 +88,7 @@ except Exception as e:
 # ==============================================================================
 # PÁGINA 1: LANÇAMENTOS
 # ==============================================================================
-if pagina == "📅 Lançamentos e Edição":
+if pagina == "📅 Lançamentos e Edição" and df is not None:
     
     # Tenta usar o último mês salvo, se não, usa o primeiro
     indice_padrao = 0 
@@ -234,7 +233,7 @@ if pagina == "📅 Lançamentos e Edição":
 # ==============================================================================
 # PÁGINA 2: EVOLUÇÃO
 # ==============================================================================
-elif pagina == "📈 Comparativo e Evolução":
+elif pagina == "📈 Comparativo e Evolução" and df is not None:
     
     st.header("📈 Evolução do seu Dinheiro")
     
@@ -295,3 +294,6 @@ elif pagina == "📈 Comparativo e Evolução":
         st.plotly_chart(fig_sobras, use_container_width=True)
     else:
         st.warning("⚠️ Nenhum dado encontrado.")
+
+else:
+    st.warning("⚠️ Conexão com Google Sheets não estabelecida. Configure as credenciais corretamente para acessar os dados.")

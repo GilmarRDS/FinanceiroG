@@ -88,8 +88,13 @@ Para publicar o app online:
 
 3. **Configure as Secrets:**
    - No painel do app no Streamlit Cloud, vá em "Settings" > "Secrets".
-   - Cole as credenciais do Google Sheets no formato TOML (igual ao arquivo `secrets.toml` local).
-   - **Importante:** As secrets no Streamlit Cloud devem ser configuradas no painel, não no arquivo do código.
+   - Cole as credenciais do Google Sheets no formato TOML.
+   - **Importante:** A `private_key` deve ter as quebras de linha representadas por `\n` (não use aspas triplas como no arquivo local).
+   - Exemplo de como deve ficar a `private_key`:
+     ```
+     private_key = "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCy1izrfM0xdyLm\n...\n-----END PRIVATE KEY-----"
+     ```
+   - **Nota:** As secrets no Streamlit Cloud são definidas como variáveis de ambiente, não como arquivos.
 
 4. **Deploy:** Clique em "Deploy" e aguarde a publicação.
 
