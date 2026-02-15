@@ -30,7 +30,7 @@ hide_st_style = """
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
-st.title("💰 Gestor Financeiro Pessoal - Gilmar")
+st.title("💰 Gestor Financeiro Pessoal")
 
 # --- MENU LATERAL ---
 st.sidebar.header("Navegação")
@@ -55,25 +55,55 @@ try:
 
     # 2. Lê a CONFIGURAÇÃO (Opcional - Protegido contra erro)
     ultimo_mes_salvo = None
+    categorias_entrada_custom = []
+    categorias_invest_custom = []
     try:
         df_config = conn.read(worksheet="Config", ttl=0)
         if not df_config.empty:
-            ultimo_mes_salvo = df_config.iloc[0, 0]
+            cfg = df_config.iloc[0]
+
+            if "Ultimo_Mes" in df_config.columns:
+                ultimo_mes_salvo = cfg.get("Ultimo_Mes")
+            else:
+                ultimo_mes_salvo = df_config.iloc[0, 0]
+
+            if "Categorias_Entrada_Custom" in df_config.columns:
+                categorias_entrada_custom = [
+                    cat.strip() for cat in str(cfg.get("Categorias_Entrada_Custom", "")).split("|")
+                    if cat and cat.strip() and cat.strip().lower() != "nan"
+                ]
+            if "Categorias_Invest_Custom" in df_config.columns:
+                categorias_invest_custom = [
+                    cat.strip() for cat in str(cfg.get("Categorias_Invest_Custom", "")).split("|")
+                    if cat and cat.strip() and cat.strip().lower() != "nan"
+                ]
     except Exception:
         # Se der erro aqui (aba não existe), vida que segue
         pass
 
     # --- PREPARAÇÃO GERAL ---
-    categorias_entrada_padrao = ["Salário", "Reembolso", "Bônus e PLR", "Receita de Aluguel", "Renda - Outra", "Ajuda de Custo (Mãe)"]
+    categorias_entrada_padrao = [
+        "Salário", "Reembolso", "Bônus e PLR", "Receita de Aluguel", "Renda - Outra",
+        "Ajuda de Custo (Mãe)", "Pagamento empréstimo Lika"
+    ]
 
-    mask_entrada_global = df["Categoria"].isin(categorias_entrada_padrao)
-    mask_invest_global = df["Categoria"].str.contains("Investimento|Aplicação|CDB|CDI|Poupança|Fundo|Ações", case=False, na=False)
+    categorias_entrada = categorias_entrada_padrao + categorias_entrada_custom
+    mask_entrada_global = (
+        df["Categoria"].isin(categorias_entrada)
+        | df["Categoria"].str.contains(r"pagamento\s+empr[eé]stimo\s+lika", case=False, na=False)
+    )
+    mask_invest_global = (
+        df["Categoria"].str.contains("Investimento|Aplicação|CDB|CDI|Poupança|Fundo|Ações", case=False, na=False)
+        | df["Categoria"].isin(categorias_invest_custom)
+    )
 
 except Exception as e:
     st.error(f"Erro crítico ao conectar ou ler planilha: {e}")
     st.info("💡 **Dica para deploy no Streamlit Cloud:** As credenciais do Google Sheets devem ser configuradas nas 'Secrets' do app no painel do Streamlit Cloud, não no arquivo .streamlit/secrets.toml.")
     df = None
     ultimo_mes_salvo = None
+    categorias_entrada_custom = []
+    categorias_invest_custom = []
     meses_disponiveis = []
     mask_entrada_global = None
     mask_invest_global = None
@@ -110,9 +140,9 @@ if pagina == "📅 Lançamentos e Edição" and conexao_valida(df, mask_entrada_
     
     st.subheader(f"📝 Lançamentos de {mes_selecionado}")
 
-    df_entradas = df[mask_entrada_global].copy().sort_values(by="Categoria")
-    df_investimentos = df[mask_invest_global].copy().sort_values(by="Categoria")
-    df_gastos = df[~mask_entrada_global & ~mask_invest_global].copy().sort_values(by="Categoria")
+    df_entradas = df[mask_entrada_global].copy()
+    df_investimentos = df[mask_invest_global].copy()
+    df_gastos = df[~mask_entrada_global & ~mask_invest_global].copy()
 
     df_entradas["Valor"] = df_entradas[mes_selecionado]
     df_gastos["Valor"] = df_gastos[mes_selecionado]
@@ -129,7 +159,7 @@ if pagina == "📅 Lançamentos e Edição" and conexao_valida(df, mask_entrada_
                 "Categoria": "Descrição",
                 "Valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f"),
             },
-            width='stretch', num_rows="dynamic", key=f"editor_entradas_{mes_selecionado}"
+            width='stretch', num_rows="dynamic", hide_index=True, key=f"editor_entradas_{mes_selecionado}"
         )
 
     with aba_gastos:
@@ -141,7 +171,7 @@ if pagina == "📅 Lançamentos e Edição" and conexao_valida(df, mask_entrada_
                 "Categoria": "Descrição",
                 "Valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f"),
             },
-            width='stretch', num_rows="dynamic", key=f"editor_gastos_{mes_selecionado}"
+            width='stretch', num_rows="dynamic", hide_index=True, key=f"editor_gastos_{mes_selecionado}"
         )
 
     with aba_invest:
@@ -153,7 +183,7 @@ if pagina == "📅 Lançamentos e Edição" and conexao_valida(df, mask_entrada_
                 "Categoria": "Descrição",
                 "Valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f"),
             },
-            width='stretch', num_rows="dynamic", key=f"editor_invest_{mes_selecionado}"
+            width='stretch', num_rows="dynamic", hide_index=True, key=f"editor_invest_{mes_selecionado}"
         )
 
     st.divider()
@@ -181,7 +211,7 @@ if pagina == "📅 Lançamentos e Edição" and conexao_valida(df, mask_entrada_
                     df_temp = df[["Categoria", mes]]
                     df_save = df_save.merge(df_temp, on="Categoria", how="left")
             
-            df_save = df_save.fillna(0).sort_values(by="Categoria")
+            df_save = df_save.fillna(0)
             
             conn.update(worksheet="Dados_App", data=df_save)
             msg_sucesso = f"✅ Dados salvos com sucesso!"
@@ -192,7 +222,22 @@ if pagina == "📅 Lançamentos e Edição" and conexao_valida(df, mask_entrada_
 
         # --- SALVAR CONFIGURAÇÃO (OPCIONAL) ---
         try:
-            df_config_novo = pd.DataFrame({"Ultimo_Mes": [mes_selecionado]})
+            categorias_entrada_custom = [
+                cat for cat in df_entradas_editado["Categoria"].dropna().astype(str).str.strip().tolist()
+                if cat and cat not in categorias_entrada_padrao
+            ]
+            categorias_invest_custom = [
+                cat for cat in df_invest_editado["Categoria"].dropna().astype(str).str.strip().tolist()
+                if cat and not pd.Series([cat]).str.contains(
+                    "Investimento|Aplicação|CDB|CDI|Poupança|Fundo|Ações", case=False, na=False
+                ).iloc[0]
+            ]
+
+            df_config_novo = pd.DataFrame({
+                "Ultimo_Mes": [mes_selecionado],
+                "Categorias_Entrada_Custom": ["|".join(sorted(set(categorias_entrada_custom)))],
+                "Categorias_Invest_Custom": ["|".join(sorted(set(categorias_invest_custom)))],
+            })
             conn.update(worksheet="Config", data=df_config_novo)
             msg_sucesso += " (Mês lembrado)"
         except Exception:
