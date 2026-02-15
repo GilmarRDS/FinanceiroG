@@ -111,7 +111,7 @@ Plotly
 
 Google Sheets API
 
-Desenvolvido por Gilmar Ribeiro dos Santos.
+Desenvolvido por autor do projeto.
 
 
 
