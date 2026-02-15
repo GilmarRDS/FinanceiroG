@@ -60,8 +60,10 @@ try:
     try:
         df_config = conn.read(worksheet="Config", ttl=0)
         if not df_config.empty:
+            cfg = df_config.iloc[0]
+
             if "Ultimo_Mes" in df_config.columns:
-                ultimo_mes_salvo = df_config.loc[0, "Ultimo_Mes"]
+                ultimo_mes_salvo = cfg.get("Ultimo_Mes")
             else:
                 ultimo_mes_salvo = df_config.iloc[0, 0]
 
