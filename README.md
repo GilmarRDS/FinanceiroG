@@ -116,3 +116,14 @@ Desenvolvido por Gilmar Ribeiro dos Santos.
 
 
 
+
+
+## ✅ Deploy rápido (Railway/Render/Heroku-like)
+
+Este repositório agora inclui:
+
+- `Procfile` com comando web para subir o Streamlit em `0.0.0.0` e porta dinâmica (`$PORT`).
+- `.streamlit/config.toml` com configurações de servidor para ambiente cloud.
+- workflow `.github/workflows/deploy-readiness.yml` para validar sintaxe e dependências em push/PR.
+
+Com isso, basta conectar o repositório na plataforma, configurar as mesmas secrets do Google Sheets e fazer o deploy.
