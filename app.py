@@ -69,12 +69,12 @@ try:
 
             if "Categorias_Entrada_Custom" in df_config.columns:
                 categorias_entrada_custom = [
-                    cat.strip() for cat in str(cfg.get("Categorias_Entrada_Custom", "")).split("|")
+                    cat.strip() for cat in str(df_config.loc[0, "Categorias_Entrada_Custom"]).split("|")
                     if cat and cat.strip() and cat.strip().lower() != "nan"
                 ]
             if "Categorias_Invest_Custom" in df_config.columns:
                 categorias_invest_custom = [
-                    cat.strip() for cat in str(cfg.get("Categorias_Invest_Custom", "")).split("|")
+                    cat.strip() for cat in str(df_config.loc[0, "Categorias_Invest_Custom"]).split("|")
                     if cat and cat.strip() and cat.strip().lower() != "nan"
                 ]
     except Exception:
@@ -82,16 +82,10 @@ try:
         pass
 
     # --- PREPARAÇÃO GERAL ---
-    categorias_entrada_padrao = [
-        "Salário", "Reembolso", "Bônus e PLR", "Receita de Aluguel", "Renda - Outra",
-        "Ajuda de Custo (Mãe)", "Pagamento empréstimo Lika"
-    ]
+    categorias_entrada_padrao = ["Salário", "Reembolso", "Bônus e PLR", "Receita de Aluguel", "Renda - Outra", "Ajuda de Custo (Mãe)"]
 
     categorias_entrada = categorias_entrada_padrao + categorias_entrada_custom
-    mask_entrada_global = (
-        df["Categoria"].isin(categorias_entrada)
-        | df["Categoria"].str.contains(r"pagamento\s+empr[eé]stimo\s+lika", case=False, na=False)
-    )
+    mask_entrada_global = df["Categoria"].isin(categorias_entrada)
     mask_invest_global = (
         df["Categoria"].str.contains("Investimento|Aplicação|CDB|CDI|Poupança|Fundo|Ações", case=False, na=False)
         | df["Categoria"].isin(categorias_invest_custom)
