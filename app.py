@@ -160,7 +160,7 @@ if pagina == "📅 Lançamentos e Edição":
                 "Categoria": "Descrição",
                 "Valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f"),
             },
-            width='stretch', num_rows="dynamic", key=f"editor_entradas_{mes_selecionado}"
+            width='stretch', num_rows="dynamic", hide_index=True, key=f"editor_entradas_{mes_selecionado}"
         )
 
     with aba_gastos:
@@ -172,7 +172,7 @@ if pagina == "📅 Lançamentos e Edição":
                 "Categoria": "Descrição",
                 "Valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f"),
             },
-            width='stretch', num_rows="dynamic", key=f"editor_gastos_{mes_selecionado}"
+            width='stretch', num_rows="dynamic", hide_index=True, key=f"editor_gastos_{mes_selecionado}"
         )
 
     with aba_invest:
@@ -184,7 +184,7 @@ if pagina == "📅 Lançamentos e Edição":
                 "Categoria": "Descrição",
                 "Valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f"),
             },
-            width='stretch', num_rows="dynamic", key=f"editor_invest_{mes_selecionado}"
+            width='stretch', num_rows="dynamic", hide_index=True, key=f"editor_invest_{mes_selecionado}"
         )
 
     st.divider()
